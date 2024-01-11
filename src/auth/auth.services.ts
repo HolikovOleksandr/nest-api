@@ -18,9 +18,8 @@ export class AuthService {
         data: { email: dto.email, hash },
       });
 
-      delete user.hash;
-
       // Return the saved user
+      delete user.hash;
       return user;
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
@@ -33,7 +32,25 @@ export class AuthService {
     }
   }
 
-  login(): Object {
-    return { msg: 'Hello signin' };
+  async login(dto: AuthDto) {
+    const icorectCredsMsg = 'Credentials incorrect';
+
+    // Find user by email
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    // If user does not exist throw exception
+    if (!user) throw new ForbiddenException(icorectCredsMsg);
+
+    // Compare passwords
+    const passMatches = await argon.verify(user.hash, dto.password);
+
+    // If password incorrect throw exception
+    if (!passMatches) throw new ForbiddenException(icorectCredsMsg);
+
+    // Send back user
+    delete user.hash;
+    return user;
   }
 }
